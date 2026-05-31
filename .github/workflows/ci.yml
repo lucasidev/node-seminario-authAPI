@@ -229,6 +229,7 @@ jobs:
         id: snyk_auth
         continue-on-error: true
         run: |
+          echo "token length: ${#SNYK_TOKEN}"
           if [ -z "${SNYK_TOKEN}" ]; then
             echo "No SNYK_TOKEN set; skipping Snyk scan."
             echo "ok=false" >> "$GITHUB_OUTPUT"
