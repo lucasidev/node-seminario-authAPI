@@ -221,8 +221,28 @@ jobs:
 
       - run: npm install --no-audit --no-fund --ignore-scripts
 
+      # Validate the token before scanning: if SNYK_TOKEN is missing OR
+      # invalid/expired (a free PAT expires after 90 days), the scan is
+      # skipped instead of failing the job with an auth error. whoami exits
+      # non-zero on bad auth; continue-on-error keeps the job green either way.
+      - name: Check Snyk auth
+        id: snyk_auth
+        continue-on-error: true
+        run: |
+          if [ -z "${SNYK_TOKEN}" ]; then
+            echo "No SNYK_TOKEN set; skipping Snyk scan."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          elif snyk whoami --experimental >/dev/null 2>&1; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "SNYK_TOKEN present but invalid or expired; skipping Snyk scan."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
       - name: Snyk test
-        if: ${{ env.SNYK_TOKEN != '' }}
+        if: ${{ steps.snyk_auth.outputs.ok == 'true' }}
         run: snyk test --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
