@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { isRedisEnabled, pingRedis } from '../shared/infra/redis.js';
+import { dependencyUp } from '../shared/metrics.js';
 
 export type CheckStatus = 'ok' | 'fail';
 
@@ -50,6 +51,14 @@ export async function runHealthChecks(): Promise<HealthReport> {
     promises.push(checkRedis());
   }
   const checks = await Promise.all(promises);
+
+  // Mirror each check into the dependency_up gauge so a down dependency is
+  // visible in Prometheus (scraped from /metrics), not just in this response.
+  // The Dockerfile healthcheck hits /health periodically, keeping it fresh.
+  for (const check of checks) {
+    dependencyUp.set({ dependency: check.name }, check.status === 'ok' ? 1 : 0);
+  }
+
   const status: CheckStatus = checks.every((c) => c.status === 'ok') ? 'ok' : 'fail';
   return {
     status,

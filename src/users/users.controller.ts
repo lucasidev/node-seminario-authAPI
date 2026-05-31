@@ -1,4 +1,9 @@
 import type { Request, Response } from 'express';
+import {
+  pokemonCaughtTotal,
+  pokemonReleasedTotal,
+  poketeamsCreatedTotal,
+} from '../shared/metrics.js';
 import { BadRequest, NotFound, Unauthorized } from '../shared/utils/errors.js';
 import { RoleModel } from './role.model.js';
 import { User } from './user.model.js';
@@ -95,6 +100,7 @@ export async function catchPokemon(req: Request, res: Response): Promise<void> {
     throw BadRequest('Could not catch pokemon');
   }
 
+  pokemonCaughtTotal.inc();
   res.status(204).end();
 }
 
@@ -112,6 +118,7 @@ export async function releasePokemon(req: Request, res: Response): Promise<void>
     throw NotFound('User not found');
   }
 
+  pokemonReleasedTotal.inc();
   res.status(204).end();
 }
 
@@ -138,6 +145,7 @@ export async function createPoketeam(req: Request, res: Response): Promise<void>
     throw NotFound('User not found');
   }
 
+  poketeamsCreatedTotal.inc();
   res.status(204).end();
 }
 

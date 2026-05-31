@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import { env } from '../shared/config/env.js';
+import { authAttemptsTotal } from '../shared/metrics.js';
 import { BadRequest, Unauthorized } from '../shared/utils/errors.js';
 import { RoleModel } from '../users/role.model.js';
 import { User } from '../users/user.model.js';
@@ -45,9 +46,11 @@ export async function signIn(req: Request, res: Response): Promise<void> {
   // so the endpoint cannot be used to enumerate registered emails.
   const passwordMatch = user ? await user.comparePassword(password) : false;
   if (!user || !passwordMatch) {
+    authAttemptsTotal.inc({ result: 'failure' });
     throw Unauthorized('Invalid credentials');
   }
 
+  authAttemptsTotal.inc({ result: 'success' });
   const token = signToken(user.id);
   res.status(200).json({ token });
 }
