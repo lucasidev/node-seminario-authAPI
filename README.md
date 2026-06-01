@@ -168,7 +168,9 @@ El patrón service-controller-model no es uniforme dentro de cada feature, y es 
 
 ### `/metrics`
 
-Formato Prometheus text exposition. Default metrics de Node (process, gc, event loop, heap) más:
+Formato Prometheus text exposition. Default metrics de Node (process, gc, event loop, heap) más métricas propias, agrupadas por plano:
+
+HTTP y proxy:
 
 - `http_requests_total{method,route,status_code}` counter
 - `http_request_duration_seconds` histogram con 11 buckets
@@ -177,6 +179,20 @@ Formato Prometheus text exposition. Default metrics de Node (process, gc, event 
 - `pokeapi_errors_total{kind}` counter (network, http)
 - `cache_hits_total{resource}` counter
 - `cache_misses_total{resource}` counter
+
+Infraestructura:
+
+- `dependency_up{dependency}` gauge: 1 si la dependencia (mongo, redis) responde, 0 si no. Se refresca desde el health check.
+
+Seguridad:
+
+- `auth_attempts_total{result}` counter: intentos de login por resultado (success, failure). Un pico de failures es señal de fuerza bruta.
+
+Dominio:
+
+- `pokemon_caught_total` counter
+- `pokemon_released_total` counter
+- `poketeams_created_total` counter
 
 ### `/health`
 
@@ -221,6 +237,7 @@ GitHub Actions en `.github/workflows/`:
 | Workflow | Trigger | Qué hace |
 |---|---|---|
 | `ci.yml` | push master, pull_request | quality (lint + typecheck + test + build) + docker build + SBOM (CycloneDX via syft + grype scan) + SonarCloud + Snyk |
+| `codeql.yml` | push / PR | Análisis estático de seguridad (CodeQL) sobre el código TypeScript |
 | `pr-title.yml` | pull_request | Valida que el title sea Conventional Commits (importante en Squash merge) |
 | `commits.yml` | pull_request | Valida cada commit del PR range con el mismo script que Lefthook commit-msg |
 | `docs-links.yml` | push / PR con `**.md` | Lychee link checker sobre archivos markdown |
@@ -231,15 +248,18 @@ Dependabot configurado con política tier-based: framework core (Express, Mongoo
 
 ## Tests
 
-20 specs en 5 suites:
+51 specs en 8 suites:
 
 | Suite | Specs | Cubre |
 |---|---|---|
 | `health.test.ts` | 1 | `/health` returns 200 con mongo ok |
-| `metrics.test.ts` | 2 | `/metrics` formato Prometheus, http_requests_total se incrementa |
-| `auth.test.ts` | 6 | signup happy + missing + duplicate, signin happy + wrong pwd + unknown user |
-| `users.test.ts` | 7 | getUserByToken con Bearer + x-access-token, 403 sin token, 401 token inválido, pokedex catch/release |
+| `metrics.test.ts` | 5 | `/metrics` formato Prometheus; counters de http, auth, dominio y dependency_up se incrementan |
+| `auth.test.ts` | 9 | signup happy + missing + duplicate + no escala a admin, signin happy + wrong pwd + unknown user (401 uniforme) |
+| `users.test.ts` | 21 | getUserByToken con Bearer + x-access-token, 403 sin token, 401 token inválido, pokedex catch/release, poketeam, admin create |
 | `pokemon.test.ts` | 4 | proxy 200, upstream 404, network error, case-insensitive name |
+| `pokemon.service.test.ts` | 4 | cache-aside: hit, miss, write, bypass sin Redis |
+| `errors.test.ts` | 4 | AppError y el handler central mapean a JSON consistente |
+| `initialSetup.test.ts` | 3 | seed idempotente de roles y admin |
 
 Todos los tests corren contra `mongodb-memory-server` (sin necesidad de Mongo externo). `global.fetch` se spyea para mockear pokeapi.co.
 
