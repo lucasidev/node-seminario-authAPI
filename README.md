@@ -248,7 +248,7 @@ just test
 just test-coverage   # threshold actual: 60% por categoría
 ```
 
-Estado de cobertura conocido: branches 40% (debajo del threshold), motivado en gaps documentados en `docs/architecture-audit.md`.
+Estado de cobertura conocido: la cobertura de branches queda por debajo del threshold global, concentrada en ramas defensivas de borde (fallos de infra, paths degradados) que no se ejercitan en el happy path. Es un gap conocido, no un descuido.
 
 ## Convenciones
 
